@@ -54,7 +54,7 @@ biblioteca-api/
 1. Clone o repositório:
 
 ```
-git clone https://github.com/FelipeGoncalves09/Biblioteca-api.git
+git clone https://github.com/FelipeGoncalves09/biblioteca-api.git
 cd biblioteca-api
 ```
 
@@ -98,42 +98,40 @@ http://localhost:8000/docs
 
 ## Endpoints principais
 
-> Os caminhos abaixo são um resumo. A lista completa e atualizada está na documentação interativa em `/docs`.
-
-### Autenticação
-
-| Método | Rota | Descrição |
-| ------ | ---- | --------- |
-| POST | `/auth/login` | Faz login e retorna o token JWT |
+> A lista completa e atualizada está na documentação interativa em `/docs`.
 
 ### Usuários (`/users`)
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
-| POST | `/users/` | Cria um novo usuário |
-| GET | `/users/me` | Retorna o usuário autenticado |
+| GET | `/users/` | Rota inicial de usuários |
+| POST | `/users/post` | Cria um novo usuário |
+| POST | `/users/login` | Faz login e retorna o token JWT |
+| PUT | `/users/put/{id}` | Atualiza um usuário |
+| DELETE | `/users/delete/{id}/` | Remove um usuário |
 
 ### Livros (`/books`)
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
 | GET | `/books/` | Lista os livros do catálogo |
-| GET | `/books/search` | Busca livros no Google Books |
-| POST | `/books/` | Cadastra um livro (admin) |
-| PUT | `/books/{id}` | Atualiza um livro (admin) |
-| DELETE | `/books/{id}` | Remove um livro (admin) |
+| POST | `/books/post` | Adiciona um livro |
+| PUT | `/books/update/{id}` | Atualiza um livro |
+| DELETE | `/books/delete/{id}` | Remove um livro |
 
-### Empréstimos (`/loans`)
+### Empréstimos (`/loan`)
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
-| POST | `/loans/` | Realiza um empréstimo |
-| PUT | `/loans/{id}/return` | Registra a devolução |
-| GET | `/loans/me` | Lista os empréstimos do usuário |
+| GET | `/loan/homeLoan` | Rota inicial de empréstimos |
+| GET | `/loan/me` | Lista os empréstimos do usuário autenticado |
+| GET | `/loan/getloanlate` | Lista os empréstimos em atraso |
+| POST | `/loan/post` | Realiza o empréstimo de um livro |
+| PUT | `/loan/return/{id}` | Registra a devolução de um livro |
 
 ## Sobre o projeto
 
-Construí esta API para praticar como as partes de um back-end real se conectam: autenticação, permissões, banco de dados relacional, consumo de API externa e regras de negócio. Evoluindo a partir da [Restaurante API](https://github.com/FelipeGoncalves09/restaurante-api), meu foco foi entender cada camada da aplicação em vez de apenas seguir tutoriais.
+Construí esta API para praticar como as partes de um back-end real se conectam: autenticação, permissões, banco de dados relacional, consumo de API externa e regras de negócio. Evoluindo a partir da [Restaurante API](https://github.com/FelipeGoncalves09/Restaurante-api), meu foco foi entender cada camada da aplicação em vez de apenas seguir tutoriais.
 
 ## Roadmap
 
