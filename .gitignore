@@ -1,0 +1,8 @@
+.env
+biblioteca.db
+__pycache__/
+cadastraradmin.py
+*.pyc
+venv/
+.venv/
+.vscode/

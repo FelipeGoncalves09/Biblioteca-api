@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus empréstimos - Biblioteca comunitária</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header id="menu"></header>
+
+    <main class="pagina">
+        <h1>Meus empréstimos</h1>
+        <p class="legenda">Os livros que estão com você e os prazos de devolução.</p>
+
+        <p id="mensagem" class="mensagem"></p>
+        <div class="fichas" id="fichas"></div>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        exigirLogin();
+        montarMenu("meus");
+
+        const fichas = document.getElementById("fichas");
+        const mensagem = document.getElementById("mensagem");
+
+        function situacao(emprestimo) {
+            if (emprestimo.return_date !== null) {
+                return { texto: "Devolvido", classe: "devolvido", detalhe: "em " + formatarData(emprestimo.return_date) };
+            }
+            const dias = diasAte(emprestimo.expiration_date);
+            if (dias < 0) {
+                const atraso = Math.abs(dias);
+                return { texto: "Atrasado", classe: "atrasado", detalhe: atraso + (atraso === 1 ? " dia de atraso" : " dias de atraso") };
+            }
+            if (dias === 0) {
+                return { texto: "Vence hoje", classe: "emprestado", detalhe: "devolva até o fim do dia" };
+            }
+            return { texto: "Em dia", classe: "livre", detalhe: "faltam " + dias + (dias === 1 ? " dia" : " dias") };
+        }
+
+        function desenhar(emprestimos, nomesLivros) {
+            fichas.innerHTML = "";
+
+            if (emprestimos.length === 0) {
+                const vazio = document.createElement("div");
+                vazio.className = "vazio";
+                vazio.textContent = "Você ainda não pegou nenhum livro. Escolha um no acervo e peça a um administrador para registrar o empréstimo.";
+                fichas.appendChild(vazio);
+                return;
+            }
+
+            // Livros ainda com você primeiro, depois os devolvidos.
+            const ordenados = emprestimos.slice().sort(function (a, b) {
+                const aberto = (a.return_date === null ? 0 : 1) - (b.return_date === null ? 0 : 1);
+                return aberto !== 0 ? aberto : new Date(b.loan_date) - new Date(a.loan_date);
+            });
+
+            for (const e of ordenados) {
+                const livro = nomesLivros[e.book_id];
+                const estilo = livro ? estiloLombada(livro) : { fundo: "#3a3f44" };
+                const s = situacao(e);
+
+                const ficha = document.createElement("article");
+                ficha.className = "ficha";
+
+                const mini = document.createElement("div");
+                mini.className = "mini-lombada";
+                mini.style.background = estilo.fundo;
+
+                const corpo = document.createElement("div");
+                const titulo = document.createElement("h3");
+                titulo.textContent = livro ? livro.name : "Livro " + e.book_id;
+                const meta = document.createElement("p");
+                meta.className = "meta";
+                meta.textContent = (livro ? livro.author + " · " : "") + "emprestado em " + formatarData(e.loan_date);
+                corpo.appendChild(titulo);
+                corpo.appendChild(meta);
+
+                const prazo = document.createElement("div");
+                prazo.className = "prazo";
+                const selo = document.createElement("span");
+                selo.className = "selo " + s.classe;
+                selo.textContent = s.texto;
+                const detalhe = document.createElement("small");
+                detalhe.style.display = "block";
+                detalhe.style.marginTop = "4px";
+                detalhe.style.color = "var(--tinta-suave)";
+                detalhe.textContent = s.detalhe;
+                prazo.appendChild(selo);
+                prazo.appendChild(detalhe);
+
+                ficha.appendChild(mini);
+                ficha.appendChild(corpo);
+                ficha.appendChild(prazo);
+                fichas.appendChild(ficha);
+            }
+        }
+
+        async function carregar() {
+            const [rEmprestimos, rLivros] = await Promise.all([chamarApi("/loan/me"), chamarApi("/books/")]);
+
+            if (!rEmprestimos.ok) {
+                const texto = rEmprestimos.status === 404
+                    ? "Esta página precisa da rota GET /loan/me na API, que ainda não existe."
+                    : "Não foi possível carregar seus empréstimos. " + textoErro(rEmprestimos.dados);
+                mostrarMensagem(mensagem, texto, "erro");
+                return;
+            }
+
+            const nomes = {};
+            if (rLivros.ok && Array.isArray(rLivros.dados)) {
+                for (const l of rLivros.dados) { nomes[l.book_id] = l; }
+            }
+            desenhar(rEmprestimos.dados, nomes);
+        }
+
+        carregar();
+    </script>
+</body>
+</html>

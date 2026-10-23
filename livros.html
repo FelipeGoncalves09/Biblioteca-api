@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acervo - Biblioteca comunitária</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header id="menu"></header>
+
+    <main class="pagina">
+        <h1>Acervo</h1>
+        <p class="legenda">Passe o mouse numa lombada para puxar o livro. Clique para ver os detalhes.</p>
+
+        <div class="ferramentas">
+            <div class="busca">
+                <label for="busca" class="sr" style="position:absolute;left:-9999px">Buscar livro</label>
+                <input type="search" id="busca" placeholder="Buscar por título ou autor">
+            </div>
+            <div class="filtros" role="group" aria-label="Filtro de disponibilidade">
+                <button type="button" id="filtroTodos" aria-pressed="true">Todos</button>
+                <button type="button" id="filtroLivres" aria-pressed="false">Disponíveis</button>
+            </div>
+        </div>
+        <p class="contagem" id="contagem" aria-live="polite"></p>
+        <p id="mensagem" class="mensagem"></p>
+
+        <div class="estante" id="estante"></div>
+    </main>
+
+    <dialog id="detalhe" aria-labelledby="detalheTitulo">
+        <div class="detalhe">
+            <div class="capa" id="detalheCapa"></div>
+            <div class="texto">
+                <h2 id="detalheTitulo"></h2>
+                <p class="autor" id="detalheAutor"></p>
+                <p class="sinopse" id="detalheSinopse"></p>
+                <div class="rodape">
+                    <span id="detalheSelo"></span>
+                    <button type="button" class="secundario" id="detalheFechar">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <script src="app.js"></script>
+    <script>
+        exigirLogin();
+        montarMenu("acervo");
+
+        const estante = document.getElementById("estante");
+        const contagem = document.getElementById("contagem");
+        const mensagem = document.getElementById("mensagem");
+        const campoBusca = document.getElementById("busca");
+        const filtroTodos = document.getElementById("filtroTodos");
+        const filtroLivres = document.getElementById("filtroLivres");
+        const detalhe = document.getElementById("detalhe");
+
+        let livros = [];          // todos os livros, já com o campo "disponivel" (true, false ou null)
+        let soDisponiveis = false;
+
+        // true/false se a disponibilidade é conhecida, null se não dá para saber.
+        // Usa o campo "available" da API; se ela ainda não manda, calcula pelos empréstimos.
+        async function marcarDisponibilidade(lista) {
+            const temCampo = lista.length > 0 && typeof lista[0].available === "boolean";
+            if (temCampo) {
+                return lista.map(function (l) { return { ...l, disponivel: l.available }; });
+            }
+
+            const r = await chamarApi("/loan/");
+            if (!r.ok || !Array.isArray(r.dados)) {
+                return lista.map(function (l) { return { ...l, disponivel: null }; });
+            }
+            const emprestados = new Set();
+            for (const e of r.dados) {
+                if (e.return_date === null) { emprestados.add(e.book_id); }
+            }
+            return lista.map(function (l) { return { ...l, disponivel: !emprestados.has(l.book_id) }; });
+        }
+
+        function livrosFiltrados() {
+            const termo = campoBusca.value.trim().toLowerCase();
+            return livros.filter(function (l) {
+                const bateBusca = termo === "" || l.name.toLowerCase().includes(termo) || l.author.toLowerCase().includes(termo);
+                const bateFiltro = !soDisponiveis || l.disponivel === true;
+                return bateBusca && bateFiltro;
+            });
+        }
+
+        function criarLombada(livro) {
+            const e = estiloLombada(livro);
+            const botao = document.createElement("button");
+            botao.type = "button";
+            botao.className = "lombada" + (livro.disponivel === false ? " emprestado" : "");
+            botao.style.width = e.largura + "px";
+            botao.style.height = e.altura + "px";
+            botao.style.background = e.fundo;
+            botao.style.color = e.texto;
+            botao.style.borderColor = e.fundo;
+            botao.setAttribute("aria-label", livro.name + ", de " + livro.author);
+
+            const faixa = document.createElement("span");
+            faixa.className = "faixa";
+            const titulo = document.createElement("span");
+            titulo.className = "titulo";
+            titulo.textContent = livro.name;
+            botao.appendChild(faixa);
+            botao.appendChild(titulo);
+
+            botao.addEventListener("click", function () { abrirDetalhe(livro); });
+            return botao;
+        }
+
+        // Divide as lombadas em prateleiras conforme a largura disponível.
+        function desenharEstante() {
+            const lista = livrosFiltrados();
+            estante.innerHTML = "";
+
+            const total = livros.length;
+            contagem.textContent = lista.length === total
+                ? total + (total === 1 ? " livro" : " livros")
+                : lista.length + " de " + total + " livros";
+
+            if (lista.length === 0) {
+                const vazio = document.createElement("div");
+                vazio.className = "vazio";
+                vazio.textContent = total === 0
+                    ? "O acervo está vazio. Um administrador pode adicionar o primeiro livro."
+                    : "Nenhum livro encontrado. Tente outra busca ou mostre todos.";
+                estante.appendChild(vazio);
+                return;
+            }
+
+            const larguraUtil = estante.clientWidth - 28;
+            let prateleira = null;
+            let usado = 0;
+
+            for (const livro of lista) {
+                const largura = estiloLombada(livro).largura + 6;
+                if (prateleira === null || usado + largura > larguraUtil) {
+                    prateleira = document.createElement("div");
+                    prateleira.className = "prateleira";
+                    estante.appendChild(prateleira);
+                    usado = 0;
+                }
+                prateleira.appendChild(criarLombada(livro));
+                usado += largura;
+            }
+        }
+
+        function abrirDetalhe(livro) {
+            const e = estiloLombada(livro);
+
+            document.getElementById("detalheTitulo").textContent = livro.name;
+            document.getElementById("detalheAutor").textContent = livro.author;
+
+            const sinopse = document.getElementById("detalheSinopse");
+            if (livro.synopsis) {
+                sinopse.textContent = livro.synopsis;
+                sinopse.className = "sinopse";
+            } else {
+                sinopse.textContent = "Este livro ainda não tem sinopse.";
+                sinopse.className = "sinopse faltando";
+            }
+
+            const capa = document.getElementById("detalheCapa");
+            capa.innerHTML = "";
+            function capaSubstituta() {
+                capa.innerHTML = "";
+                const falsa = document.createElement("div");
+                falsa.className = "capa-vazia";
+                falsa.style.background = e.fundo;
+                falsa.style.color = e.texto;
+                falsa.textContent = livro.name;
+                capa.appendChild(falsa);
+            }
+            if (livro.cover_url) {
+                const img = document.createElement("img");
+                img.alt = "Capa de " + livro.name;
+                img.addEventListener("error", capaSubstituta);
+                img.src = livro.cover_url;
+                capa.appendChild(img);
+            } else {
+                capaSubstituta();
+            }
+
+            const selo = document.getElementById("detalheSelo");
+            if (livro.disponivel === null) {
+                selo.textContent = "";
+                selo.className = "";
+            } else {
+                selo.textContent = livro.disponivel ? "Disponível" : "Emprestado";
+                selo.className = "selo " + (livro.disponivel ? "livre" : "emprestado");
+            }
+
+            detalhe.showModal();
+        }
+
+        async function carregarLivros() {
+            const r = await chamarApi("/books/");
+            if (!r.ok) {
+                mostrarMensagem(mensagem, "Não foi possível carregar o acervo. " + textoErro(r.dados), "erro");
+                return;
+            }
+            livros = await marcarDisponibilidade(r.dados);
+            desenharEstante();
+        }
+
+        function escolherFiltro(somenteLivres) {
+            soDisponiveis = somenteLivres;
+            filtroTodos.setAttribute("aria-pressed", String(!somenteLivres));
+            filtroLivres.setAttribute("aria-pressed", String(somenteLivres));
+            desenharEstante();
+        }
+
+        filtroTodos.addEventListener("click", function () { escolherFiltro(false); });
+        filtroLivres.addEventListener("click", function () { escolherFiltro(true); });
+        campoBusca.addEventListener("input", desenharEstante);
+        document.getElementById("detalheFechar").addEventListener("click", function () { detalhe.close(); });
+        detalhe.addEventListener("click", function (ev) { if (ev.target === detalhe) { detalhe.close(); } });
+
+        let temporizador = null;
+        window.addEventListener("resize", function () {
+            clearTimeout(temporizador);
+            temporizador = setTimeout(desenharEstante, 150);
+        });
+
+        carregarLivros();
+    </script>
+</body>
+</html>

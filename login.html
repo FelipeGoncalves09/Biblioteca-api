@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrar - Biblioteca comunitária</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="login">
+        <div class="login-estante">
+            <h1>Biblioteca <span>comunitária</span></h1>
+            <div class="prateleira-deco" id="decoracao" aria-hidden="true"></div>
+        </div>
+
+        <div class="login-formularios">
+            <section>
+                <h2>Entrar</h2>
+                <div class="campo">
+                    <label for="nome">Nome</label>
+                    <input type="text" id="nome" autocomplete="username">
+                </div>
+                <div class="campo">
+                    <label for="senha">Senha</label>
+                    <input type="password" id="senha" autocomplete="current-password">
+                </div>
+                <button type="button" id="botaoLogin">Entrar</button>
+                <p id="mensagemLogin" class="mensagem"></p>
+            </section>
+
+            <section>
+                <h2>Criar conta</h2>
+                <p class="nota">Ainda não tem cadastro? Leva um minuto.</p>
+                <div class="campo">
+                    <label for="novoNome">Nome</label>
+                    <input type="text" id="novoNome" autocomplete="off">
+                </div>
+                <div class="campo">
+                    <label for="novaSenha">Senha</label>
+                    <input type="password" id="novaSenha" autocomplete="new-password">
+                </div>
+                <button type="button" id="botaoCadastro" class="secundario">Criar conta</button>
+                <p id="mensagemCadastro" class="mensagem"></p>
+            </section>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if (getToken() !== null) {
+            window.location.href = "livros.html";
+        }
+
+        // Prateleira decorativa: lombadas de tamanhos e cores variados, entrando em sequência.
+        (function montarDecoracao() {
+            const alvo = document.getElementById("decoracao");
+            const alturas = [150, 210, 180, 240, 170, 220, 195, 250, 160, 205, 185, 230, 175, 215];
+            const larguras = [34, 48, 40, 56, 36, 50, 44, 58, 38, 52, 42, 54, 36, 46];
+            for (let i = 0; i < alturas.length; i++) {
+                const lombada = document.createElement("i");
+                lombada.style.height = alturas[i] + "px";
+                lombada.style.width = larguras[i] + "px";
+                lombada.style.background = CORES_LOMBADA[(i * 3) % CORES_LOMBADA.length].fundo;
+                lombada.style.animationDelay = (i * 60) + "ms";
+                alvo.appendChild(lombada);
+            }
+        })();
+
+        const mensagemLogin = document.getElementById("mensagemLogin");
+        const mensagemCadastro = document.getElementById("mensagemCadastro");
+
+        async function fazerLogin() {
+            const nome = document.getElementById("nome").value.trim();
+            const senha = document.getElementById("senha").value;
+
+            if (nome === "" || senha === "") {
+                mostrarMensagem(mensagemLogin, "Preencha nome e senha.", "erro");
+                return;
+            }
+
+            const r = await chamarApi("/users/login", {
+                method: "POST",
+                body: JSON.stringify({ name: nome, password: senha })
+            });
+
+            if (!r.ok) {
+                mostrarMensagem(mensagemLogin, textoErro(r.dados), "erro");
+                return;
+            }
+
+            localStorage.setItem("token", r.dados.token);
+            window.location.href = "livros.html";
+        }
+
+        async function criarConta() {
+            const nome = document.getElementById("novoNome").value.trim();
+            const senha = document.getElementById("novaSenha").value;
+
+            if (nome === "" || senha === "") {
+                mostrarMensagem(mensagemCadastro, "Preencha nome e senha.", "erro");
+                return;
+            }
+
+            const r = await chamarApi("/users/post", {
+                method: "POST",
+                body: JSON.stringify({ name: nome, password: senha })
+            });
+
+            if (!r.ok) {
+                mostrarMensagem(mensagemCadastro, textoErro(r.dados), "erro");
+                return;
+            }
+
+            mostrarMensagem(mensagemCadastro, "Conta criada. Agora é só entrar.", "sucesso");
+        }
+
+        document.getElementById("botaoLogin").addEventListener("click", fazerLogin);
+        document.getElementById("botaoCadastro").addEventListener("click", criarConta);
+        document.getElementById("senha").addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { fazerLogin(); }
+        });
+        document.getElementById("novaSenha").addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { criarConta(); }
+        });
+    </script>
+</body>
+</html>

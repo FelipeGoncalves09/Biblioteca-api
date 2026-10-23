@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administração - Biblioteca comunitária</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header id="menu"></header>
+
+    <main class="pagina">
+        <h1>Administração</h1>
+        <p class="legenda">Cadastre livros, registre empréstimos e devoluções. Só administradores têm acesso.</p>
+
+        <div class="duas-colunas">
+            <section class="painel linha-topo">
+                <h2>Novo livro</h2>
+                <p class="legenda">Digite o título. Autor, capa e sinopse vêm da Google Books.</p>
+                <div class="campo">
+                    <label for="tituloLivro">Título</label>
+                    <input type="text" id="tituloLivro" placeholder="Dom Casmurro">
+                </div>
+                <button type="button" id="botaoAdicionar">Adicionar livro</button>
+                <p id="mensagemLivro" class="mensagem"></p>
+            </section>
+
+            <section class="painel linha-topo">
+                <h2>Novo empréstimo</h2>
+                <p class="legenda">Escolha quem leva e qual livro. O prazo é de 15 dias.</p>
+                <div class="dois-campos">
+                    <div class="campo">
+                        <label for="idUsuario">Código do usuário</label>
+                        <input type="number" id="idUsuario" min="1">
+                    </div>
+                    <div class="campo">
+                        <label for="idLivro">Código do livro</label>
+                        <input type="number" id="idLivro" min="1">
+                    </div>
+                </div>
+                <button type="button" id="botaoEmprestar">Registrar empréstimo</button>
+                <p id="mensagemEmprestimo" class="mensagem"></p>
+            </section>
+        </div>
+
+        <section class="painel linha-topo">
+            <div class="cabecalho-lista">
+                <h2>Empréstimos</h2>
+                <button type="button" id="botaoFiltro" class="secundario pequeno" aria-pressed="false">Mostrar só atrasados</button>
+            </div>
+            <p id="mensagemLista" class="mensagem"></p>
+            <div class="tabela-rolavel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Livro</th>
+                            <th>Usuário</th>
+                            <th>Emprestado em</th>
+                            <th>Prazo</th>
+                            <th>Situação</th>
+                            <th><span class="sr" style="position:absolute;left:-9999px">Ação</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabela"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        exigirLogin();
+        montarMenu("admin");
+
+        const mensagemLivro = document.getElementById("mensagemLivro");
+        const mensagemEmprestimo = document.getElementById("mensagemEmprestimo");
+        const mensagemLista = document.getElementById("mensagemLista");
+        const corpoTabela = document.getElementById("corpoTabela");
+        const botaoFiltro = document.getElementById("botaoFiltro");
+
+        let todosEmprestimos = [];
+        let nomesLivros = {};
+        let nomesUsuarios = {};
+        let soAtrasados = false;
+
+        /* ---------- Novo livro ---------- */
+        async function adicionarLivro() {
+            const campo = document.getElementById("tituloLivro");
+            const titulo = campo.value.trim();
+
+            if (titulo === "") {
+                mostrarMensagem(mensagemLivro, "Digite o título do livro.", "erro");
+                return;
+            }
+
+            mostrarMensagem(mensagemLivro, "Buscando na Google Books...", "sucesso");
+
+            const r = await chamarApi("/books/post", {
+                method: "POST",
+                body: JSON.stringify({ title: titulo })
+            });
+
+            if (!r.ok) {
+                const texto = r.status === 403 ? "Você não tem permissão de administrador." : textoErro(r.dados);
+                mostrarMensagem(mensagemLivro, texto, "erro");
+                return;
+            }
+
+            mostrarMensagem(mensagemLivro, "Livro adicionado: " + r.dados.name + ", de " + r.dados.author + ".", "sucesso");
+            campo.value = "";
+            carregarTudo();
+        }
+
+        /* ---------- Novo empréstimo ---------- */
+        async function emprestar() {
+            const usuario = parseInt(document.getElementById("idUsuario").value, 10);
+            const livro = parseInt(document.getElementById("idLivro").value, 10);
+
+            if (isNaN(usuario) || isNaN(livro)) {
+                mostrarMensagem(mensagemEmprestimo, "Informe o código do usuário e o do livro.", "erro");
+                return;
+            }
+
+            const r = await chamarApi("/loan/post", {
+                method: "POST",
+                body: JSON.stringify({ user_id: usuario, book_id: livro })
+            });
+
+            if (!r.ok) {
+                const texto = r.status === 403 ? "Você não tem permissão de administrador." : textoErro(r.dados);
+                mostrarMensagem(mensagemEmprestimo, texto, "erro");
+                return;
+            }
+
+            mostrarMensagem(mensagemEmprestimo, "Empréstimo registrado. Devolução até " + formatarData(r.dados.expiration_date) + ".", "sucesso");
+            carregarTudo();
+        }
+
+        /* ---------- Devolução ---------- */
+        async function devolver(idEmprestimo) {
+            const r = await chamarApi("/loan/return/" + idEmprestimo, { method: "PUT" });
+
+            if (!r.ok) {
+                const texto = r.status === 403 ? "Você não tem permissão de administrador." : textoErro(r.dados);
+                mostrarMensagem(mensagemLista, texto, "erro");
+                return;
+            }
+
+            mostrarMensagem(mensagemLista, "Devolução registrada.", "sucesso");
+            carregarTudo();
+        }
+
+        /* ---------- Lista ---------- */
+        function estaAtrasado(e) {
+            return e.return_date === null && new Date(e.expiration_date) < new Date();
+        }
+
+        function celula(texto, classe) {
+            const td = document.createElement("td");
+            td.textContent = texto;
+            if (classe) { td.className = classe; }
+            return td;
+        }
+
+        function desenharTabela() {
+            corpoTabela.innerHTML = "";
+            const lista = soAtrasados ? todosEmprestimos.filter(estaAtrasado) : todosEmprestimos;
+
+            if (lista.length === 0) {
+                const tr = document.createElement("tr");
+                const td = celula(soAtrasados ? "Nenhum empréstimo atrasado." : "Nenhum empréstimo registrado ainda.", "vazio-tabela");
+                td.colSpan = 6;
+                tr.appendChild(td);
+                corpoTabela.appendChild(tr);
+                return;
+            }
+
+            const ordenados = lista.slice().sort(function (a, b) {
+                const aberto = (a.return_date === null ? 0 : 1) - (b.return_date === null ? 0 : 1);
+                return aberto !== 0 ? aberto : new Date(b.loan_date) - new Date(a.loan_date);
+            });
+
+            for (const e of ordenados) {
+                const tr = document.createElement("tr");
+                const livro = nomesLivros[e.book_id];
+                const usuario = nomesUsuarios[e.user_id];
+
+                tr.appendChild(celula(livro ? livro.name : "Livro " + e.book_id, "livro-nome"));
+                tr.appendChild(celula(usuario ? usuario : "Usuário " + e.user_id));
+                tr.appendChild(celula(formatarData(e.loan_date)));
+                tr.appendChild(celula(formatarData(e.expiration_date)));
+
+                const situacao = document.createElement("td");
+                const selo = document.createElement("span");
+                if (e.return_date !== null) {
+                    selo.className = "selo devolvido";
+                    selo.textContent = "Devolvido em " + formatarData(e.return_date);
+                } else if (estaAtrasado(e)) {
+                    selo.className = "selo atrasado";
+                    selo.textContent = "Atrasado";
+                } else {
+                    selo.className = "selo emprestado";
+                    selo.textContent = "Com o usuário";
+                }
+                situacao.appendChild(selo);
+                tr.appendChild(situacao);
+
+                const acao = document.createElement("td");
+                if (e.return_date === null) {
+                    const botao = document.createElement("button");
+                    botao.type = "button";
+                    botao.className = "pequeno";
+                    botao.textContent = "Registrar devolução";
+                    botao.addEventListener("click", function () { devolver(e.loan_id); });
+                    acao.appendChild(botao);
+                }
+                tr.appendChild(acao);
+
+                corpoTabela.appendChild(tr);
+            }
+        }
+
+        async function carregarTudo() {
+            const [rEmprestimos, rLivros, rUsuarios] = await Promise.all([
+                chamarApi("/loan/"), chamarApi("/books/"), chamarApi("/users/")
+            ]);
+
+            if (rLivros.ok && Array.isArray(rLivros.dados)) {
+                nomesLivros = {};
+                for (const l of rLivros.dados) { nomesLivros[l.book_id] = l; }
+            }
+            if (rUsuarios.ok && Array.isArray(rUsuarios.dados)) {
+                nomesUsuarios = {};
+                for (const u of rUsuarios.dados) { nomesUsuarios[u.user_id] = u.name; }
+            }
+
+            if (!rEmprestimos.ok) {
+                const texto = rEmprestimos.status === 403
+                    ? "Você não tem permissão para ver os empréstimos."
+                    : "Não foi possível carregar os empréstimos. " + textoErro(rEmprestimos.dados);
+                mostrarMensagem(mensagemLista, texto, "erro");
+                return;
+            }
+
+            todosEmprestimos = rEmprestimos.dados;
+            desenharTabela();
+        }
+
+        document.getElementById("botaoAdicionar").addEventListener("click", adicionarLivro);
+        document.getElementById("botaoEmprestar").addEventListener("click", emprestar);
+        document.getElementById("tituloLivro").addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { adicionarLivro(); }
+        });
+        botaoFiltro.addEventListener("click", function () {
+            soAtrasados = !soAtrasados;
+            botaoFiltro.textContent = soAtrasados ? "Mostrar todos" : "Mostrar só atrasados";
+            botaoFiltro.setAttribute("aria-pressed", String(soAtrasados));
+            desenharTabela();
+        });
+
+        carregarTudo();
+    </script>
+</body>
+</html>
