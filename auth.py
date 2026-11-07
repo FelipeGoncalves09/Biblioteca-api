@@ -10,7 +10,6 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")  
 
- 
 
 # --- Configuração de hash de senha ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -22,14 +21,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # --- Diz ao FastAPI onde fica a rota de login, pra ele saber pedir o token no /docs ---
 security_scheme = HTTPBearer()
 
-# --- Fábrica de crachá ---
+# --- Fábrica de Token ---
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# --- Leitor de crachá: usado como "porteiro" nas rotas protegidas ---
+# --- Leitor de Token: usado como "porteiro" nas rotas protegidas ---
 def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
     token = credentials.credentials
     try:    

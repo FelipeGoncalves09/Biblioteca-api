@@ -1,23 +1,32 @@
+import os
 import httpx
-import asyncio
+from dotenv import load_dotenv
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 
+# --- Busca o livro na api do google books pelo titulo ---
 async def buscar_livro(title: str):
-    url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}&key=AIzaSyAzS4eqqU97v02rBPqNmLAYJe2FTNvDxNQ"
-    
+    url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}&key={API_KEY}"
+
     async with httpx.AsyncClient() as client:
         resposta = await client.get(url)
+        # --- transforma a resposta em json pra eu conseguir percorrer ---
         dados = resposta.json()
+        # --- print so pra ver oq a api ta devolvendo quando der erro ---
+        print(dados)
 
+    # --- se nao achou nada, vai devolver None ---
     if dados.get("totalItems", 0) == 0:
         print("Nenhum livro encontrado.")
-        return None, None
+        
+        return None, None, None, None
 
-    titulo = dados["items"][0]["volumeInfo"]["title"]
-    autor = dados["items"][0]["volumeInfo"]["authors"][0]
-    return titulo, autor
-    
+    # --- pega so o primeiro resultado e separa os dados necessários ---
+    info = dados["items"][0]["volumeInfo"]
+    titulo = info["title"]
+    autor = info["authors"][0]
+    # --- esses dois nem sempre vem, por isso o .get() ---
+    sinopse = info.get("description")
+    capa = info.get("imageLinks", {}).get("thumbnail")
 
-
-'''titulo, autor = asyncio.run(buscar_livro(titulo_livro))
-print(titulo)
-print(autor)'''
+    return titulo, autor, sinopse, capa

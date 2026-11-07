@@ -53,7 +53,9 @@ class UpdateBook(BaseModel):
 class BookResponse(BaseModel):
     name: str
     author: str
-    avaible: bool
+    synopsis: str
+    cover_url: str
+    
     
 
 # EMPRESTAR -------------------------------------------------------------

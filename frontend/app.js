@@ -95,7 +95,7 @@ function montarMenu(ativo) {
         return;
     }
     const itens = [
-        ["acervo", "Acervo", "livros.html"],
+        ["Livros", "Livros", "livros.html"],
         ["meus", "Meus empréstimos", "meus.html"],
         ["admin", "Administração", "admin.html"]
     ];
