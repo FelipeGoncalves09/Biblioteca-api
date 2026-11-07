@@ -23,6 +23,7 @@ class LoginUser(BaseModel):
 
 class UserResponse(BaseModel):
         name: str
+        user_id:int
 
         class Config:
             from_attributes = True
@@ -53,8 +54,13 @@ class UpdateBook(BaseModel):
 class BookResponse(BaseModel):
     name: str
     author: str
-    synopsis: str
-    cover_url: str
+    synopsis: str | None = None
+    cover_url: str | None = None
+
+class ShowResponse(BaseModel):
+     name: str
+     author: str
+     book_id: int
     
     
 

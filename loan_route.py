@@ -40,7 +40,7 @@ def Loan_book(loan:CreateLoan,current_user_id = Depends(get_current_user_id),db:
             raise HTTPException(status_code=403, detail="Not Autorized!")
     search = db.query(LoanDB).filter(LoanDB.book_id == loan.book_id,LoanDB.return_date == None ).first()
     if search is not None:
-        raise HTTPException(status_code=503, detail="There is alreary a user that loaned this book")
+        raise HTTPException(status_code=409, detail="There is alreary a user that loaned this book")
     
 
     new_loan = LoanDB(
@@ -57,8 +57,7 @@ def Loan_book(loan:CreateLoan,current_user_id = Depends(get_current_user_id),db:
 @auth_router.put("/return/{id}")
 def Return_book(id:int,current_user_id = Depends(get_current_user_id), db:Session = Depends(get_db)):
     current_admin = db.query(UserDB).filter(UserDB.user_id == current_user_id).first()
-    if current_user_id != id:
-        if current_admin.admin == False:
+    if current_admin.admin == False:
             raise HTTPException(status_code=403, detail="Not Autorized!")
     search = db.query(LoanDB).filter(LoanDB.loan_id == id).first()
 

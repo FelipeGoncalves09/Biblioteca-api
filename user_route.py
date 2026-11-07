@@ -11,7 +11,7 @@ auth_router = APIRouter(prefix="/users", tags=["users"])
 
 
 # --- lista todos os usuarios ---
-@auth_router.get("/")
+@auth_router.get("/", response_model=list[UserResponse])
 def home(db: Session = Depends(get_db)):
     search = db.query(UserDB).all()
     return search
@@ -36,12 +36,12 @@ def CriarUsuario(user: CreateUser, db: Session = Depends(get_db)):
 @auth_router.post("/login")
 def LogarUsuario(user: LoginUser, db: Session = Depends(get_db)):
     search = db.query(UserDB).filter(UserDB.name == user.name).first()
-
+    if search is None:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
     # --- compara a senha digitada com o hash salvo no banco ---
     password_check = pwd_context.verify(user.password, search.hashed_password)
     if not password_check:
-        raise HTTPException(status_code=403, detail="wrong password")
-
+        raise HTTPException(status_code=401, detail="Invalid username or password")
     # --- cria o token guardando o id de quem logou ---
     token = create_access_token({"user_id": search.user_id})
     return {"token": token, "token_type": "bearer"}
@@ -58,7 +58,7 @@ def DeletarUsuario(id: int, current_user_id: int = Depends(get_current_user_id),
 
     search = db.query(UserDB).filter(UserDB.user_id == id).first()
     if search is None:
-        raise HTTPException(status_code="404", detail="user not found")
+        raise HTTPException(status_code=404, detail="user not found")
 
     db.delete(search)
     db.commit()
@@ -74,7 +74,7 @@ def AtualizarUsuario(id: int, user: UpdateUser, current_user_id: int = Depends(g
 
     search = db.query(UserDB).filter(UserDB.user_id == id).first()
     if search is None:
-        raise HTTPException(status_code="404", detail="user not found")
+        raise HTTPException(status_code=404, detail="user not found")
 
     temporary_user = search
 
@@ -82,7 +82,7 @@ def AtualizarUsuario(id: int, user: UpdateUser, current_user_id: int = Depends(g
     search.password = user.password
 
     if search is None:
-        raise HTTPException(status_code="404", detail="user not found")
+        raise HTTPException(status_code=404, detail="user not found")
 
     db.commit()
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
-from schemas import CreateBook, UpdateBook, BookResponse
+from schemas import CreateBook, UpdateBook, BookResponse,ShowResponse
 from database import BookDB, get_db, UserDB, LoanDB
 from google_book_api import buscar_livro
 from auth import get_current_user_id
@@ -9,7 +9,7 @@ from auth import get_current_user_id
 auth_router = APIRouter(prefix="/books", tags=["books"])
 
 # --- Lista todos os livros com o status de disponibilidade ---
-@auth_router.get("/")
+@auth_router.get("/", response_model=list[ShowResponse])
 def livros(db: Session = Depends(get_db)):
     search = db.query(BookDB).all()
 
@@ -72,7 +72,7 @@ def Put_user(id: int, book: UpdateBook, current_user_id=Depends(get_current_user
 
     search = db.query(BookDB).filter(BookDB.book_id == id).first()
     if search is None:
-        raise HTTPException(status_code="404", detail="Book not found")
+        raise HTTPException(status_code=404, detail="Book not found")
 
     search.name = book.name
     search.author = book.author
@@ -91,7 +91,7 @@ def Delete_user(id: int, current_user_id=Depends(get_current_user_id), db: Sessi
 
     search = db.query(BookDB).filter(BookDB.book_id == id).first()
     if search is None:
-        raise HTTPException(status_code="404", detail="Book not found")
+        raise HTTPException(status_code=404, detail="Book not found")
 
     db.delete(search)
     db.commit()
