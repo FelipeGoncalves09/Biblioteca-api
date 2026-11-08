@@ -143,7 +143,7 @@ Construí esta API para praticar como as partes de um back-end real se conectam:
 - [x] Autenticação de usuários (JWT)
 - [x] Integração com a API do Google Books
 - [x] Controle de empréstimos
-- [ ] Testes automatizados (pytest)
+- [x] Testes automatizados (pytest)
 - [ ] Separar o projeto em pastas (routers, models, schemas)
 - [ ] Docker
 - [ ] Migrations com Alembic
