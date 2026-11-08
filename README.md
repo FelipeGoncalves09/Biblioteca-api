@@ -49,6 +49,7 @@ biblioteca-api/
 ├── admin.html           # painel administrativo
 ├── app.js               # lógica do front-end
 ├── style.css            # estilos
+├── docs/                # capturas de tela usadas no README
 ├── .env.example         # modelo das variáveis de ambiente
 └── requirements.txt     # dependências do projeto
 ```
