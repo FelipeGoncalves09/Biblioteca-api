@@ -14,11 +14,11 @@ def livros(db: Session = Depends(get_db)):
     search = db.query(BookDB).all()
 
     # --- Empréstimos sem data de devolução são os livros que ainda estão emprestados ---
-    search_avaible = db.query(LoanDB).filter(LoanDB.return_date == None).all()
+    search_available = db.query(LoanDB).filter(LoanDB.return_date == None).all()
 
     # --- Guarda só os ids dos livros emprestados---
     book_id_loan = set()
-    for loaned in search_avaible:
+    for loaned in search_available:
         book_id_loan.add(loaned.book_id)
 
     # --- Cria a resposta ---

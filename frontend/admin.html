@@ -65,6 +65,25 @@
                 </table>
             </div>
         </section>
+
+        <section class="painel linha-topo" style="margin-top: 44px;">
+            <h2>Livros cadastrados</h2>
+            <p class="legenda">Remover um livro apaga ele do acervo.</p>
+            <p id="mensagemAcervo" class="mensagem"></p>
+            <div class="tabela-rolavel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Livro</th>
+                            <th>Autor</th>
+                            <th><span class="sr" style="position:absolute;left:-9999px">Ação</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoLivros"></tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
     <script src="app.js"></script>
@@ -220,6 +239,61 @@
             }
         }
 
+        /* ---------- Remover livro ---------- */
+        // Se a sua rota de deletar tiver outro caminho, troque só esta linha.
+        // O número do livro é colocado no final. Ex.: "/books/delete/" + 3
+        const ROTA_DELETAR_LIVRO = "/books/delete/";
+
+        const mensagemAcervo = document.getElementById("mensagemAcervo");
+        const corpoLivros = document.getElementById("corpoLivros");
+
+        async function removerLivro(livro) {
+            const certeza = window.confirm('Remover "' + livro.name + '" do acervo?');
+            if (!certeza) { return; }
+
+            const r = await chamarApi(ROTA_DELETAR_LIVRO + livro.book_id, { method: "DELETE" });
+
+            if (!r.ok) {
+                const texto = r.status === 403 ? "Você não tem permissão de administrador." : textoErro(r.dados);
+                mostrarMensagem(mensagemAcervo, texto, "erro");
+                return;
+            }
+
+            mostrarMensagem(mensagemAcervo, '"' + livro.name + '" foi removido.', "sucesso");
+            carregarTudo();
+        }
+
+        function desenharLivros(lista) {
+            corpoLivros.innerHTML = "";
+
+            if (lista.length === 0) {
+                const tr = document.createElement("tr");
+                const td = celula("Nenhum livro cadastrado ainda.", "vazio-tabela");
+                td.colSpan = 4;
+                tr.appendChild(td);
+                corpoLivros.appendChild(tr);
+                return;
+            }
+
+            for (const livro of lista) {
+                const tr = document.createElement("tr");
+                tr.appendChild(celula(livro.book_id));
+                tr.appendChild(celula(livro.name, "livro-nome"));
+                tr.appendChild(celula(livro.author));
+
+                const acao = document.createElement("td");
+                const botao = document.createElement("button");
+                botao.type = "button";
+                botao.className = "pequeno secundario";
+                botao.textContent = "Remover";
+                botao.addEventListener("click", function () { removerLivro(livro); });
+                acao.appendChild(botao);
+                tr.appendChild(acao);
+
+                corpoLivros.appendChild(tr);
+            }
+        }
+
         async function carregarTudo() {
             const [rEmprestimos, rLivros, rUsuarios] = await Promise.all([
                 chamarApi("/loan/"), chamarApi("/books/"), chamarApi("/users/")
@@ -228,6 +302,7 @@
             if (rLivros.ok && Array.isArray(rLivros.dados)) {
                 nomesLivros = {};
                 for (const l of rLivros.dados) { nomesLivros[l.book_id] = l; }
+                desenharLivros(rLivros.dados);
             }
             if (rUsuarios.ok && Array.isArray(rUsuarios.dados)) {
                 nomesUsuarios = {};

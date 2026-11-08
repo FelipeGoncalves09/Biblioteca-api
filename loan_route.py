@@ -8,7 +8,7 @@ from auth import get_current_user_id
 
 auth_router = APIRouter(prefix="/loan", tags=["loan"])
 
-@auth_router.get("/homeLoan", response_model = list[LoanResponse])
+@auth_router.get("/", response_model = list[LoanResponse])
 def Home(current_user_id = Depends(get_current_user_id),db:Session = Depends(get_db)):
     current_admin = db.query(UserDB).filter(UserDB.user_id == current_user_id).first()
     if current_user_id != id:

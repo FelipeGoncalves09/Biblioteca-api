@@ -58,9 +58,12 @@ class BookResponse(BaseModel):
     cover_url: str | None = None
 
 class ShowResponse(BaseModel):
-     name: str
-     author: str
-     book_id: int
+    name: str
+    author: str
+    book_id: int
+    synopsis: str | None = None
+    cover_url: str | None = None
+    available: bool
     
     
 
