@@ -71,4 +71,3 @@ def Return_book(id:int,current_user_id = Depends(get_current_user_id), db:Sessio
     db.commit()
     return {"response": "the loan return was a success!"}
 
-#dar contiunuidade na validaçao de rotas admin
