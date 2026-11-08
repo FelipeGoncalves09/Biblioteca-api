@@ -1,5 +1,9 @@
 # Biblioteca API
 
+![Livros](docs/livros.png)
+![Meus empréstimos](docs/meus-emprestimos.png)
+![Administração](docs/admin.png)
+
 API REST para gerenciamento de uma biblioteca, com cadastro de usuários, autenticação, catálogo de livros integrado à API do Google Books e controle de empréstimos. Inclui um front-end simples (HTML, CSS e JavaScript) para uso e administração.
 
 Fiz este projeto para praticar desenvolvimento back-end com Python, indo além do CRUD básico: autenticação com JWT, consumo de uma API externa e regras de negócio (empréstimos).
